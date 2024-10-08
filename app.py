@@ -4,10 +4,7 @@ import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
 from datetime import datetime, timedelta
-from newsapi import NewsApiClient
-from textblob import TextBlob
-import tweepy
-from nltk.sentiment import SentimentIntensityAnalyzer
+#from newsapi import NewsApiClient
 from transformers import pipeline 
 
 sentiment_analyzer = pipeline("sentiment-analysis")
@@ -101,7 +98,7 @@ def plot_profit_chart(portfolio, timeframe):
     plt.grid()
     plt.tight_layout()
     plt.show()
-newsapi = NewsApiClient(api_key='c9be6b6939e440c1896fd1859d43cd94')
+'''newsapi = NewsApiClient(api_key='c9be6b6939e440c1896fd1859d43cd94')
 
 def fetch_stock_news(stock_symbol):
     query = f"{stock_symbol} OR {stock_symbol.split('.')[0]}"
@@ -110,7 +107,7 @@ def fetch_stock_news(stock_symbol):
     articles = news['articles']
     news_data = [{'title': article['title'], 'description': article['description'], 'url': article['url']} for article in articles if article['source']['name'].lower() == 'the times of india' or article['source']['name'].lower() == 'moneycontrol']
     
-    return news_data
+    return news_data'''
 
 
 def streamlit_interface():
@@ -168,7 +165,7 @@ def streamlit_interface():
 
         portfolio = simulate_portfolio(data, initial_capital)
 
-        st.write("Latest News:")
+        '''st.write("Latest News:")
         s1=""
         s1="".join(stock_symbol)
         s2=s1[:-3]
@@ -179,7 +176,7 @@ def streamlit_interface():
                 st.write(article['description'])
                 st.markdown(f"[Read more]({article['url']})")
         else:
-            st.write("No relevant news found.")
+            st.write("No relevant news found.")'''
         
 
         st.write(f"Latest data for {stock_symbol}:")
