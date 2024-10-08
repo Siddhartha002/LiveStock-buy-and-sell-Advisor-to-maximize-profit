@@ -6,7 +6,7 @@ import streamlit as st
 from datetime import datetime, timedelta
 #from newsapi import NewsApiClient
 from transformers import pipeline 
-
+st.set_option('deprecation.showPyplotGlobalUse', False)
 sentiment_analyzer = pipeline("sentiment-analysis")
 def plot_sentiment_pie_chart(sentiment_counts):
     labels = sentiment_counts.keys()
@@ -86,7 +86,7 @@ def plot_stock_data(data, portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.show()
+    st.pyplot()
 
 def plot_profit_chart(portfolio, timeframe):
     plt.figure(figsize=(14, 5))
@@ -97,7 +97,7 @@ def plot_profit_chart(portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.show()
+    st.pyplot()
 '''newsapi = NewsApiClient(api_key='c9be6b6939e440c1896fd1859d43cd94')
 
 def fetch_stock_news(stock_symbol):
