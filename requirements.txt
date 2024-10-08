@@ -2,8 +2,3 @@ pandas
 numpy
 matplotlib
 yfinance
-streamlit
-newsapi
-textblob
-nltk.sentiment
-transformers 
