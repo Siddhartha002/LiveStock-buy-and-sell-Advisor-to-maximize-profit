@@ -142,7 +142,6 @@ def streamlit_interface():
     
 
     if st.button("Run Simulation"):
-        st.set_option('deprecation.showPyplotGlobalUse', False)
         st.write("Fetching live data and running simulation...")
         period = '1mo'
         interval = '5m'
