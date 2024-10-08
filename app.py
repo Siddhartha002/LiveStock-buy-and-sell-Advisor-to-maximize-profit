@@ -6,7 +6,6 @@ import streamlit as st
 from datetime import datetime, timedelta
 #from newsapi import NewsApiClient
 from transformers import pipeline 
-st.set_option('deprecation.showPyplotGlobalUse', False)
 sentiment_analyzer = pipeline("sentiment-analysis")
 def plot_sentiment_pie_chart(sentiment_counts):
     labels = sentiment_counts.keys()
