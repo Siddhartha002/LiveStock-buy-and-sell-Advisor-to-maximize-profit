@@ -1,10 +1,29 @@
+'''this is the main code file with all the feature, app.py has been modifyied to run on streamlit server, hence some features are removed in that!THANKYOU'''
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
 from datetime import datetime, timedelta
+from newsapi import NewsApiClient
+from textblob import TextBlob
+import tweepy
+from nltk.sentiment import SentimentIntensityAnalyzer
 from transformers import pipeline 
+
+sentiment_analyzer = pipeline("sentiment-analysis")
+def plot_sentiment_pie_chart(sentiment_counts):
+    labels = sentiment_counts.keys()
+    sizes = sentiment_counts.values()
+    colors = ['#ff9999', '#66b3ff', '#99ff99']
+    explode = (0.1, 0, 0)
+
+    plt.figure(figsize=(8, 6))
+    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
+            autopct='%1.1f%%', shadow=True, startangle=140)
+    plt.axis('equal')
+    plt.title("Sentiment Analysis Results")
+    return plt 
 
 def calculate_brokerage(amount):
     return min(20, 0.0005 * amount)
@@ -52,19 +71,6 @@ def simulate_portfolio(data, initial_capital=100000):
         portfolio.iloc[i, portfolio.columns.get_loc('Total')] = portfolio.iloc[i]['Cash'] + portfolio.iloc[i]['Holdings']
         portfolio.iloc[i, portfolio.columns.get_loc('Returns')] = portfolio.iloc[i]['Total'] - portfolio.iloc[i - 1]['Total']
     return portfolio
-sentiment_analyzer = pipeline("sentiment-analysis")
-def plot_sentiment_pie_chart(sentiment_counts):
-    labels = sentiment_counts.keys()
-    sizes = sentiment_counts.values()
-    colors = ['#ff9999', '#66b3ff', '#99ff99']
-    explode = (0.1, 0, 0)
-
-    plt.figure(figsize=(8, 6))
-    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
-            autopct='%1.1f%%', shadow=True, startangle=140)
-    plt.axis('equal')
-    plt.title("Sentiment Analysis Results")
-    return plt 
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -84,7 +90,7 @@ def plot_stock_data(data, portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot()
+    plt.show()
 
 def plot_profit_chart(portfolio, timeframe):
     plt.figure(figsize=(14, 5))
@@ -95,7 +101,17 @@ def plot_profit_chart(portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot()
+    plt.show()
+newsapi = NewsApiClient(api_key='c9be6b6939e440c1896fd1859d43cd94')
+
+def fetch_stock_news(stock_symbol):
+    query = f"{stock_symbol} OR {stock_symbol.split('.')[0]}"
+    news = newsapi.get_everything(q=query, language='en', sort_by='relevancy', page_size=5)
+    
+    articles = news['articles']
+    news_data = [{'title': article['title'], 'description': article['description'], 'url': article['url']} for article in articles if article['source']['name'].lower() == 'the times of india' or article['source']['name'].lower() == 'moneycontrol']
+    
+    return news_data
 
 
 def streamlit_interface():
@@ -117,11 +133,13 @@ def streamlit_interface():
                 sentiment_counts['Neutral'] += 1
             
             plot_sentiment_pie_chart(sentiment_counts)
+            '''fig = plot_sentiment_pie_chart(sentiment_counts)
+            st.pyplot(fig)'''
         else:
             st.write("Please enter some text for analysis.")
     
-    st.subheader('enter the stock name and relax let me suggest you when to buy and sell to maximize profit')
-    stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS)(note:must add .NS after the stock name)", "TATAMOTORS.NS")
+    
+    stock_symbol = st.text_input("Enter Stock Symbol (e.g., TATAMOTORS.NS)", "TATAMOTORS.NS")
     initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=100000)
 
     timeframe_option = st.selectbox("Select Timeframe for Data", ["1 Day", "1 month"])
@@ -129,6 +147,7 @@ def streamlit_interface():
     
 
     if st.button("Run Simulation"):
+        st.set_option('deprecation.showPyplotGlobalUse', False)
         st.write("Fetching live data and running simulation...")
         period = '1mo'
         interval = '5m'
@@ -150,6 +169,19 @@ def streamlit_interface():
 
         portfolio = simulate_portfolio(data, initial_capital)
 
+        st.write("Latest News:")
+        s1=""
+        s1="".join(stock_symbol)
+        s2=s1[:-3]
+        news = fetch_stock_news(s2)
+        if news:
+            for article in news:
+                st.write(f"**{article['title']}**")
+                st.write(article['description'])
+                st.markdown(f"[Read more]({article['url']})")
+        else:
+            st.write("No relevant news found.")
+        
 
         st.write(f"Latest data for {stock_symbol}:")
         st.dataframe(data.tail())
@@ -158,10 +190,10 @@ def streamlit_interface():
         st.dataframe(portfolio.tail())
 
         st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
-        plot_stock_data(data, portfolio, timeframe_option)
+        st.pyplot(plot_stock_data(data, portfolio, timeframe_option))
         
         st.write(f"Portfolio Value Over Time ({timeframe_option}):")
-        plot_profit_chart(portfolio, timeframe_option)
+        st.pyplot(plot_profit_chart(portfolio, timeframe_option))
 
 if __name__ == "__main__":
     streamlit_interface()
