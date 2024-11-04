@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from transformers import pipeline 
 
 def calculate_brokerage(amount):
+    if isinstance(amount, pd.Series):
+        amount = amount.iloc[0]  # or use amount.mean() for an average
     return min(20, 0.0005 * amount)
 
 def fetch_live_data(stock_symbol, interval='5m', period='1mo'):
