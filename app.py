@@ -30,29 +30,30 @@ def simulate_portfolio(data, initial_capital=100000):
 
     for i in range(1, len(data)):
         # Buy Signal
-        if data.at[data.index[i], 'Position'] == 1.0:
-            shares_to_buy = portfolio.iloc[i - 1]['Cash'] // data.iloc[i]['Close']
-            amount = shares_to_buy * data.iloc[i]['Close']
+        if data['Position'].iloc[i] == 1.0:  # Using iloc here for integer-based indexing
+            shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
+            amount = shares_to_buy * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
-            if tcost <= portfolio.iloc[i - 1]['Cash']:
+            if tcost <= portfolio['Cash'].iloc[i - 1]:
                 shares_held += shares_to_buy
-                portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash'] - tcost
+                portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
-                portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash']
+                portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1]
         # Sell Signal
-        elif data.at[data.index[i], 'Position'] == -1.0 and shares_held > 0:
-            amount = shares_held * data.iloc[i]['Close']
+        elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
+            amount = shares_held * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash'] + tcost
+            portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
-            portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash']
+            portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1]
 
-        portfolio.at[data.index[i], 'Holdings'] = shares_held * data.iloc[i]['Close']
-        portfolio.at[data.index[i], 'Total'] = portfolio.at[data.index[i], 'Cash'] + portfolio.at[data.index[i], 'Holdings']
-        portfolio.at[data.index[i], 'Returns'] = portfolio.at[data.index[i], 'Total'] - portfolio.iloc[i - 1]['Total']
+        portfolio['Holdings'].iloc[i] = shares_held * data['Close'].iloc[i]
+        portfolio['Total'].iloc[i] = portfolio['Cash'].iloc[i] + portfolio['Holdings'].iloc[i]
+        portfolio['Returns'].iloc[i] = portfolio['Total'].iloc[i] - portfolio['Total'].iloc[i - 1]
+
     return portfolio
 
 sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
