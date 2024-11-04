@@ -1,10 +1,10 @@
-'''this is the main code file with all the feature, app.py has been modifyied to run on streamlit server, hence some features are removed in that!THANKYOU'''
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
-
+from datetime import datetime, timedelta
+from transformers import pipeline 
 
 def calculate_brokerage(amount):
     return min(20, 0.0005 * amount)
@@ -21,37 +21,47 @@ def calculate_signals(data, short_window=7, long_window=30):
     return data
 
 def simulate_portfolio(data, initial_capital=100000):
+    # Initialize portfolio DataFrame with matching indices to data
     portfolio = pd.DataFrame(index=data.index)
     portfolio['Holdings'] = 0.0
-    portfolio['Cash'] = float(initial_capital)
-    portfolio['Total'] = float(initial_capital)
+    portfolio['Cash'] = initial_capital
+    portfolio['Total'] = initial_capital
     portfolio['Returns'] = 0.0
     shares_held = 0
 
     for i in range(1, len(data)):
-        if data.iloc[i]['Position'] == 1:
-            shares_to_buy = portfolio.iloc[i - 1]['Cash'] // data.iloc[i]['Close']
-            amount = shares_to_buy * data.iloc[i]['Close']
+        # Ensure that the current row exists in portfolio before assignment
+        current_index = data.index[i]
+
+        # Buy Signal
+        if data['Position'].iloc[i] == 1.0:
+            shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
+            amount = shares_to_buy * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
-            if tcost <= portfolio.iloc[i - 1]['Cash']:
+            if tcost <= portfolio['Cash'].iloc[i - 1]:
                 shares_held += shares_to_buy
-                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] - tcost
+                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
-                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
-        elif data.iloc[i]['Position'] == -1 and shares_held > 0:
-            amount = shares_held * data.iloc[i]['Close']
+                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
+        
+        # Sell Signal
+        elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
+            amount = shares_held * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] + tcost
+            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
-            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
+            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
 
-        portfolio.iloc[i, portfolio.columns.get_loc('Holdings')] = shares_held * data.iloc[i]['Close']
-        portfolio.iloc[i, portfolio.columns.get_loc('Total')] = portfolio.iloc[i]['Cash'] + portfolio.iloc[i]['Holdings']
-        portfolio.iloc[i, portfolio.columns.get_loc('Returns')] = portfolio.iloc[i]['Total'] - portfolio.iloc[i - 1]['Total']
+        # Update holdings, total, and returns using .at[]
+        portfolio.at[current_index, 'Holdings'] = shares_held * data['Close'].iloc[i]
+        portfolio.at[current_index, 'Total'] = portfolio.at[current_index, 'Cash'] + portfolio.at[current_index, 'Holdings']
+        portfolio.at[current_index, 'Returns'] = portfolio.at[current_index, 'Total'] - portfolio['Total'].iloc[i - 1]
+
     return portfolio
+
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -71,7 +81,7 @@ def plot_stock_data(data, portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.show()
+    st.pyplot(plt)
 
 def plot_profit_chart(portfolio, timeframe):
     plt.figure(figsize=(14, 5))
@@ -82,22 +92,18 @@ def plot_profit_chart(portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    plt.show()
-
-
+    st.pyplot(plt)
 
 def streamlit_interface():
     st.title('Live Stock Portfolio Simulation')
     
-    stock_symbol = st.text_input("Enter Stock Symbol (e.g., TATAMOTORS.NS)", "TATAMOTORS.NS")
-    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=100000)
+    st.subheader('Enter the stock name and relax, let me suggest when to buy and sell to maximize profit')
+    stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS) (note: must add .NS after the stock name)", "TATAMOTORS.NS")
+    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=10000)
 
     timeframe_option = st.selectbox("Select Timeframe for Data", ["1 Day", "1 month"])
 
-    
-
     if st.button("Run Simulation"):
-        st.set_option('deprecation.showPyplotGlobalUse', False)
         st.write("Fetching live data and running simulation...")
         period = '1mo'
         interval = '5m'
@@ -105,9 +111,6 @@ def streamlit_interface():
         if timeframe_option == "1 Day":
             period = '1d'
             interval = '1m'
-        elif timeframe_option == "1 Week":
-            period = '1mo'
-            interval = '5m'
         
         data = fetch_live_data(stock_symbol, interval=interval, period=period)
         data = calculate_signals(data)
@@ -115,22 +118,19 @@ def streamlit_interface():
         if data.empty:
             st.error("No data fetched. Please check the stock symbol or try a different timeframe.")
         else:
-            data = calculate_signals(data)
+            portfolio = simulate_portfolio(data, initial_capital)
 
-        portfolio = simulate_portfolio(data, initial_capital)
-        
+            st.write(f"Latest data for {stock_symbol}:")
+            st.dataframe(data.tail())
+            
+            st.write("Portfolio summary:")
+            st.dataframe(portfolio.tail())
 
-        st.write(f"Latest data for {stock_symbol}:")
-        st.dataframe(data.tail())
-        
-        st.write("Portfolio summary:")
-        st.dataframe(portfolio.tail())
-
-        st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
-        st.pyplot(plot_stock_data(data, portfolio, timeframe_option))
-        
-        st.write(f"Portfolio Value Over Time ({timeframe_option}):")
-        st.pyplot(plot_profit_chart(portfolio, timeframe_option))
+            st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
+            plot_stock_data(data, portfolio, timeframe_option)
+            
+            st.write(f"Portfolio Value Over Time ({timeframe_option}):")
+            plot_profit_chart(portfolio, timeframe_option)
 
 if __name__ == "__main__":
     streamlit_interface()
