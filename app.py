@@ -24,38 +24,39 @@ def simulate_portfolio(data, initial_capital=100000):
     # Initialize portfolio DataFrame with matching indices to data
     portfolio = pd.DataFrame(index=data.index)
     portfolio['Holdings'] = 0.0
-    portfolio['Cash'] = initial_capital
-    portfolio['Total'] = initial_capital
+    portfolio['Cash'] = float(initial_capital)
+    portfolio['Total'] = float(initial_capital)
     portfolio['Returns'] = 0.0
     shares_held = 0
 
     for i in range(1, len(data)):
-        # Ensure that the current row exists in portfolio before assignment
         current_index = data.index[i]
+        prev_cash = float(portfolio['Cash'].iloc[i - 1])  # Convert to scalar for clarity
 
         # Buy Signal
         if data['Position'].iloc[i] == 1.0:
-            shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
+            shares_to_buy = prev_cash // data['Close'].iloc[i]
             amount = shares_to_buy * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
-            if tcost <= portfolio['Cash'].iloc[i - 1]:
+            
+            if tcost <= prev_cash:  # Ensure scalar comparison
                 shares_held += shares_to_buy
-                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
+                portfolio.at[current_index, 'Cash'] = prev_cash - tcost
             else:
-                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
+                portfolio.at[current_index, 'Cash'] = prev_cash
         
         # Sell Signal
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
+            portfolio.at[current_index, 'Cash'] = prev_cash + tcost
             shares_held = 0
         else:
-            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
+            portfolio.at[current_index, 'Cash'] = prev_cash
 
-        # Update holdings, total, and returns using .at[]
+        # Update holdings, total, and returns
         portfolio.at[current_index, 'Holdings'] = shares_held * data['Close'].iloc[i]
         portfolio.at[current_index, 'Total'] = portfolio.at[current_index, 'Cash'] + portfolio.at[current_index, 'Holdings']
         portfolio.at[current_index, 'Returns'] = portfolio.at[current_index, 'Total'] - portfolio['Total'].iloc[i - 1]
