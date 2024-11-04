@@ -5,6 +5,19 @@ import yfinance as yf
 import streamlit as st
 from datetime import datetime, timedelta
 from transformers import pipeline 
+sentiment_analyzer = pipeline("sentiment-analysis")
+def plot_sentiment_pie_chart(sentiment_counts):
+    labels = sentiment_counts.keys()
+    sizes = sentiment_counts.values()
+    colors = ['#ff9999', '#66b3ff', '#99ff99']
+    explode = (0.1, 0, 0)
+
+    plt.figure(figsize=(8, 6))
+    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
+            autopct='%1.1f%%', shadow=True, startangle=140)
+    plt.axis('equal')
+    plt.title("Sentiment Analysis Results")
+    return plt 
 
 def calculate_brokerage(amount):
     return min(20, 0.0005 * amount)
@@ -28,62 +41,30 @@ def simulate_portfolio(data, initial_capital=100000):
     portfolio['Returns'] = 0.0
     shares_held = 0
 
-def simulate_portfolio(data, initial_capital=100000):
-    # Initialize portfolio DataFrame with matching indices to data
-    portfolio = pd.DataFrame(index=data.index)
-    portfolio['Holdings'] = 0.0
-    portfolio['Cash'] = initial_capital
-    portfolio['Total'] = initial_capital
-    portfolio['Returns'] = 0.0
-    shares_held = 0
-
     for i in range(1, len(data)):
-        # Ensure that the current row exists in portfolio before assignment
-        current_index = data.index[i]
-
-        # Buy Signal
-        if data['Position'].iloc[i] == 1.0:
-            shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
-            amount = shares_to_buy * data['Close'].iloc[i]
+        if data.iloc[i]['Position'] == 1:
+            shares_to_buy = portfolio.iloc[i - 1]['Cash'] // data.iloc[i]['Close']
+            amount = shares_to_buy * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
-            if tcost <= portfolio['Cash'].iloc[i - 1]:
+            if tcost <= portfolio.iloc[i - 1]['Cash']:
                 shares_held += shares_to_buy
-                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
+                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] - tcost
             else:
-                portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
-        
-        # Sell Signal
-        elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
-            amount = shares_held * data['Close'].iloc[i]
+                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
+        elif data.iloc[i]['Position'] == -1 and shares_held > 0:
+            amount = shares_held * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
+            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] + tcost
             shares_held = 0
         else:
-            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
+            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
 
-        # Update holdings, total, and returns using .at[]
-        portfolio.at[current_index, 'Holdings'] = shares_held * data['Close'].iloc[i]
-        portfolio.at[current_index, 'Total'] = portfolio.at[current_index, 'Cash'] + portfolio.at[current_index, 'Holdings']
-        portfolio.at[current_index, 'Returns'] = portfolio.at[current_index, 'Total'] - portfolio['Total'].iloc[i - 1]
-
+        portfolio.iloc[i, portfolio.columns.get_loc('Holdings')] = shares_held * data.iloc[i]['Close']
+        portfolio.iloc[i, portfolio.columns.get_loc('Total')] = portfolio.iloc[i]['Cash'] + portfolio.iloc[i]['Holdings']
+        portfolio.iloc[i, portfolio.columns.get_loc('Returns')] = portfolio.iloc[i]['Total'] - portfolio.iloc[i - 1]['Total']
     return portfolio
-
-sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-
-def plot_sentiment_pie_chart(sentiment_counts):
-    labels = sentiment_counts.keys()
-    sizes = sentiment_counts.values()
-    colors = ['#ff9999', '#66b3ff', '#99ff99']
-    explode = (0.1, 0, 0)
-
-    plt.figure(figsize=(8, 6))
-    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
-            autopct='%1.1f%%', shadow=True, startangle=140)
-    plt.axis('equal')
-    plt.title("Sentiment Analysis Results")
-    st.pyplot(plt)
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -93,7 +74,7 @@ def plot_stock_data(data, portfolio, timeframe):
 
     buy_signals = data[data['Position'] == 1]
     sell_signals = data[data['Position'] == -1]
-    
+
     plt.plot(buy_signals.index, data['Close'][buy_signals.index], '^', markersize=10, color='g', label='Buy Signal')
     plt.plot(sell_signals.index, data['Close'][sell_signals.index], 'v', markersize=10, color='r', label='Sell Signal')
 
@@ -103,7 +84,7 @@ def plot_stock_data(data, portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot(plt)
+    st.pyplot()
 
 def plot_profit_chart(portfolio, timeframe):
     plt.figure(figsize=(14, 5))
@@ -114,7 +95,7 @@ def plot_profit_chart(portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot(plt)
+    st.pyplot()
 
 def streamlit_interface():
     st.title('Live Stock Portfolio Simulation')
@@ -125,7 +106,7 @@ def streamlit_interface():
             sentiment = result[0]['label']
             score = result[0]['score']
             st.write(f"Sentiment: {sentiment} (Confidence: {score:.2f})")
-            
+
             sentiment_counts = {'Positive': 0, 'Negative': 0, 'Neutral': 0}
             if sentiment == "POSITIVE":
                 sentiment_counts['Positive'] += 1
@@ -133,16 +114,23 @@ def streamlit_interface():
                 sentiment_counts['Negative'] += 1
             else:
                 sentiment_counts['Neutral'] += 1
+
+            plot_sentiment_pie_chart(sentiment_counts)
+            '''fig = plot_sentiment_pie_chart(sentiment_counts)
+            st.pyplot(fig)'''
         else:
             st.write("Please enter some text for analysis.")
-    
-    st.subheader('Enter the stock name and relax, let me suggest when to buy and sell to maximize profit')
-    stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS) (note: must add .NS after the stock name)", "TATAMOTORS.NS")
-    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=10000)
+
+
+    stock_symbol = st.text_input("Enter Stock Symbol (e.g., TATAMOTORS.NS)", "TATAMOTORS.NS")
+    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=100000)
 
     timeframe_option = st.selectbox("Select Timeframe for Data", ["1 Day", "1 month"])
 
+
+
     if st.button("Run Simulation"):
+        st.set_option('deprecation.showPyplotGlobalUse', False)
         st.write("Fetching live data and running simulation...")
         period = '1mo'
         interval = '5m'
@@ -150,26 +138,32 @@ def streamlit_interface():
         if timeframe_option == "1 Day":
             period = '1d'
             interval = '1m'
-        
+        elif timeframe_option == "1 Week":
+            period = '1mo'
+            interval = '5m'
+
         data = fetch_live_data(stock_symbol, interval=interval, period=period)
         data = calculate_signals(data)
         st.write("Fetched Data:", data)
         if data.empty:
             st.error("No data fetched. Please check the stock symbol or try a different timeframe.")
         else:
-            portfolio = simulate_portfolio(data, initial_capital)
+            data = calculate_signals(data)
 
-            st.write(f"Latest data for {stock_symbol}:")
-            st.dataframe(data.tail())
-            
-            st.write("Portfolio summary:")
-            st.dataframe(portfolio.tail())
+        portfolio = simulate_portfolio(data, initial_capital)
 
-            st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
-            plot_stock_data(data, portfolio, timeframe_option)
-            
-            st.write(f"Portfolio Value Over Time ({timeframe_option}):")
-            plot_profit_chart(portfolio, timeframe_option)
+
+        st.write(f"Latest data for {stock_symbol}:")
+        st.dataframe(data.tail())
+
+        st.write("Portfolio summary:")
+        st.dataframe(portfolio.tail())
+
+        st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
+        st.pyplot(plot_stock_data(data, portfolio, timeframe_option))
+
+        st.write(f"Portfolio Value Over Time ({timeframe_option}):")
+        st.pyplot(plot_profit_chart(portfolio, timeframe_option))
 
 if __name__ == "__main__":
     streamlit_interface()
