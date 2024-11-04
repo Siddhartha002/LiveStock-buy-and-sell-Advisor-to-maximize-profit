@@ -8,7 +8,7 @@ from transformers import pipeline
 
 def calculate_brokerage(amount):
     if isinstance(amount, pd.Series):
-        amount = amount.iloc[0]  # or use amount.mean() for an average
+        amount = amount.iloc[0]  # Use the first value if it's a Series
     return min(20, 0.0005 * amount)
 
 def fetch_live_data(stock_symbol, interval='5m', period='1mo'):
@@ -32,39 +32,41 @@ def simulate_portfolio(data, initial_capital=100000):
     shares_held = 0
 
     for i in range(1, len(data)):
+        # Ensure that the current row exists in portfolio before assignment
         current_index = data.index[i]
-        prev_cash = float(portfolio['Cash'].iloc[i - 1])  # Convert to scalar for clarity
 
         # Buy Signal
         if data['Position'].iloc[i] == 1.0:
-            shares_to_buy = prev_cash // data['Close'].iloc[i]
-            amount = shares_to_buy * data['Close'].iloc[i]
+            cash = portfolio['Cash'].iloc[i - 1]
+            price = data['Close'].iloc[i]
+            shares_to_buy = cash // price if not pd.isnull(cash) and not pd.isnull(price) else 0
+            
+            amount = shares_to_buy * price
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
             
-            if tcost <= prev_cash:  # Ensure scalar comparison
+            if tcost <= cash:
                 shares_held += shares_to_buy
-                portfolio.at[current_index, 'Cash'] = prev_cash - tcost
+                portfolio.at[current_index, 'Cash'] = cash - tcost
             else:
-                portfolio.at[current_index, 'Cash'] = prev_cash
+                portfolio.at[current_index, 'Cash'] = cash
         
         # Sell Signal
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.at[current_index, 'Cash'] = prev_cash + tcost
+            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
-            portfolio.at[current_index, 'Cash'] = prev_cash
+            portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
 
-        # Update holdings, total, and returns
+        # Update holdings, total, and returns using .at[]
         portfolio.at[current_index, 'Holdings'] = shares_held * data['Close'].iloc[i]
         portfolio.at[current_index, 'Total'] = portfolio.at[current_index, 'Cash'] + portfolio.at[current_index, 'Holdings']
         portfolio.at[current_index, 'Returns'] = portfolio.at[current_index, 'Total'] - portfolio['Total'].iloc[i - 1]
 
     return portfolio
-
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -117,6 +119,7 @@ def streamlit_interface():
         
         data = fetch_live_data(stock_symbol, interval=interval, period=period)
         data = calculate_signals(data)
+        
         st.write("Fetched Data:", data)
         if data.empty:
             st.error("No data fetched. Please check the stock symbol or try a different timeframe.")
