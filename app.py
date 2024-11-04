@@ -30,7 +30,7 @@ def simulate_portfolio(data, initial_capital=100000):
 
     for i in range(1, len(data)):
         # Buy Signal
-        if data.iloc[i]['Position'] == 1.0:
+        if data.at[data.index[i], 'Position'] == 1.0:
             shares_to_buy = portfolio.iloc[i - 1]['Cash'] // data.iloc[i]['Close']
             amount = shares_to_buy * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
@@ -41,7 +41,7 @@ def simulate_portfolio(data, initial_capital=100000):
             else:
                 portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
         # Sell Signal
-        elif data.iloc[i]['Position'] == -1.0 and shares_held > 0:
+        elif data.at[data.index[i], 'Position'] == -1.0 and shares_held > 0:
             amount = shares_held * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
