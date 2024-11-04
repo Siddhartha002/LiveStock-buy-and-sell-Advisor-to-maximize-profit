@@ -21,14 +21,6 @@ def calculate_signals(data, short_window=7, long_window=30):
     return data
 
 def simulate_portfolio(data, initial_capital=100000):
-    portfolio = pd.DataFrame(index=data.index)
-    portfolio['Holdings'] = 0.0
-    portfolio['Cash'] = float(initial_capital)
-    portfolio['Total'] = float(initial_capital)
-    portfolio['Returns'] = 0.0
-    shares_held = 0
-
-def simulate_portfolio(data, initial_capital=100000):
     # Initialize portfolio DataFrame with matching indices to data
     portfolio = pd.DataFrame(index=data.index)
     portfolio['Holdings'] = 0.0
