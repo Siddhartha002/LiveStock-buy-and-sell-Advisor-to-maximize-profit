@@ -37,22 +37,22 @@ def simulate_portfolio(data, initial_capital=100000):
             tcost = amount + brokerage
             if tcost <= portfolio.iloc[i - 1]['Cash']:
                 shares_held += shares_to_buy
-                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] - tcost
+                portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash'] - tcost
             else:
-                portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
+                portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash']
         # Sell Signal
         elif data.at[data.index[i], 'Position'] == -1.0 and shares_held > 0:
             amount = shares_held * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] + tcost
+            portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash'] + tcost
             shares_held = 0
         else:
-            portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
+            portfolio.at[data.index[i], 'Cash'] = portfolio.iloc[i - 1]['Cash']
 
-        portfolio.iloc[i, portfolio.columns.get_loc('Holdings')] = shares_held * data.iloc[i]['Close']
-        portfolio.iloc[i, portfolio.columns.get_loc('Total')] = portfolio.iloc[i]['Cash'] + portfolio.iloc[i]['Holdings']
-        portfolio.iloc[i, portfolio.columns.get_loc('Returns')] = portfolio.iloc[i]['Total'] - portfolio.iloc[i - 1]['Total']
+        portfolio.at[data.index[i], 'Holdings'] = shares_held * data.iloc[i]['Close']
+        portfolio.at[data.index[i], 'Total'] = portfolio.at[data.index[i], 'Cash'] + portfolio.at[data.index[i], 'Holdings']
+        portfolio.at[data.index[i], 'Returns'] = portfolio.at[data.index[i], 'Total'] - portfolio.iloc[i - 1]['Total']
     return portfolio
 
 sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
