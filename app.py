@@ -70,20 +70,6 @@ def simulate_portfolio(data, initial_capital=100000):
 
     return portfolio
 
-sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
-
-def plot_sentiment_pie_chart(sentiment_counts):
-    labels = sentiment_counts.keys()
-    sizes = sentiment_counts.values()
-    colors = ['#ff9999', '#66b3ff', '#99ff99']
-    explode = (0.1, 0, 0)
-
-    plt.figure(figsize=(8, 6))
-    plt.pie(sizes, explode=explode, labels=labels, colors=colors,
-            autopct='%1.1f%%', shadow=True, startangle=140)
-    plt.axis('equal')
-    plt.title("Sentiment Analysis Results")
-    st.pyplot(plt)
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -118,23 +104,6 @@ def plot_profit_chart(portfolio, timeframe):
 
 def streamlit_interface():
     st.title('Live Stock Portfolio Simulation')
-    user_input = st.text_area("Enter your comments or thoughts:")
-    if st.button("Analyze Sentiment"):
-        if user_input:
-            result = sentiment_analyzer(user_input)
-            sentiment = result[0]['label']
-            score = result[0]['score']
-            st.write(f"Sentiment: {sentiment} (Confidence: {score:.2f})")
-            
-            sentiment_counts = {'Positive': 0, 'Negative': 0, 'Neutral': 0}
-            if sentiment == "POSITIVE":
-                sentiment_counts['Positive'] += 1
-            elif sentiment == "NEGATIVE":
-                sentiment_counts['Negative'] += 1
-            else:
-                sentiment_counts['Neutral'] += 1
-        else:
-            st.write("Please enter some text for analysis.")
     
     st.subheader('Enter the stock name and relax, let me suggest when to buy and sell to maximize profit')
     stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS) (note: must add .NS after the stock name)", "TATAMOTORS.NS")
