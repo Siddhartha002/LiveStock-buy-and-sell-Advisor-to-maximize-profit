@@ -30,29 +30,29 @@ def simulate_portfolio(data, initial_capital=100000):
 
     for i in range(1, len(data)):
         # Buy Signal
-        if data['Position'].iloc[i] == 1.0:  # Using iloc here for integer-based indexing
+        if data['Position'].iloc[i] == 1.0:
             shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
             amount = shares_to_buy * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
             if tcost <= portfolio['Cash'].iloc[i - 1]:
                 shares_held += shares_to_buy
-                portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1] - tcost
+                portfolio.loc[data.index[i], 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
-                portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1]
+                portfolio.loc[data.index[i], 'Cash'] = portfolio['Cash'].iloc[i - 1]
         # Sell Signal
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
-            portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1] + tcost
+            portfolio.loc[data.index[i], 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
-            portfolio['Cash'].iloc[i] = portfolio['Cash'].iloc[i - 1]
+            portfolio.loc[data.index[i], 'Cash'] = portfolio['Cash'].iloc[i - 1]
 
-        portfolio['Holdings'].iloc[i] = shares_held * data['Close'].iloc[i]
-        portfolio['Total'].iloc[i] = portfolio['Cash'].iloc[i] + portfolio['Holdings'].iloc[i]
-        portfolio['Returns'].iloc[i] = portfolio['Total'].iloc[i] - portfolio['Total'].iloc[i - 1]
+        portfolio.loc[data.index[i], 'Holdings'] = shares_held * data['Close'].iloc[i]
+        portfolio.loc[data.index[i], 'Total'] = portfolio['Cash'].iloc[i] + portfolio['Holdings'].iloc[i]
+        portfolio.loc[data.index[i], 'Returns'] = portfolio['Total'].iloc[i] - portfolio['Total'].iloc[i - 1]
 
     return portfolio
 
