@@ -6,8 +6,6 @@ import streamlit as st
 from datetime import datetime, timedelta
 from transformers import pipeline 
 
-def calculate_brokerage(amount):
-    return min(20, 0.0005 * amount)
 
 def fetch_live_data(stock_symbol, interval='5m', period='1mo'):
     live_data = yf.download(tickers=stock_symbol, period=period, interval=interval)
@@ -37,8 +35,7 @@ def simulate_portfolio(data, initial_capital=100000):
         if data['Position'].iloc[i] == 1.0:
             shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
             amount = shares_to_buy * data['Close'].iloc[i]
-            brokerage = calculate_brokerage(amount)
-            tcost = amount + brokerage
+            tcost = amount
             if tcost <= portfolio['Cash'].iloc[i - 1]:
                 shares_held += shares_to_buy
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
@@ -48,8 +45,7 @@ def simulate_portfolio(data, initial_capital=100000):
         # Sell Signal
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
-            brokerage = calculate_brokerage(amount)
-            tcost = amount - brokerage
+            tcost = amount
             portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
