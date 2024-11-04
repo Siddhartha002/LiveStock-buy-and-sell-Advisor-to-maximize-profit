@@ -29,7 +29,8 @@ def simulate_portfolio(data, initial_capital=100000):
     shares_held = 0
 
     for i in range(1, len(data)):
-        if data.iloc[i]['Position'] == 1:
+        # Buy Signal
+        if data.iloc[i]['Position'] == 1.0:
             shares_to_buy = portfolio.iloc[i - 1]['Cash'] // data.iloc[i]['Close']
             amount = shares_to_buy * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
@@ -39,7 +40,8 @@ def simulate_portfolio(data, initial_capital=100000):
                 portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash'] - tcost
             else:
                 portfolio.iloc[i, portfolio.columns.get_loc('Cash')] = portfolio.iloc[i - 1]['Cash']
-        elif data.iloc[i]['Position'] == -1 and shares_held > 0:
+        # Sell Signal
+        elif data.iloc[i]['Position'] == -1.0 and shares_held > 0:
             amount = shares_held * data.iloc[i]['Close']
             brokerage = calculate_brokerage(amount)
             tcost = amount - brokerage
@@ -52,7 +54,9 @@ def simulate_portfolio(data, initial_capital=100000):
         portfolio.iloc[i, portfolio.columns.get_loc('Total')] = portfolio.iloc[i]['Cash'] + portfolio.iloc[i]['Holdings']
         portfolio.iloc[i, portfolio.columns.get_loc('Returns')] = portfolio.iloc[i]['Total'] - portfolio.iloc[i - 1]['Total']
     return portfolio
-sentiment_analyzer = pipeline("sentiment-analysis")
+
+sentiment_analyzer = pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+
 def plot_sentiment_pie_chart(sentiment_counts):
     labels = sentiment_counts.keys()
     sizes = sentiment_counts.values()
@@ -64,7 +68,7 @@ def plot_sentiment_pie_chart(sentiment_counts):
             autopct='%1.1f%%', shadow=True, startangle=140)
     plt.axis('equal')
     plt.title("Sentiment Analysis Results")
-    return plt 
+    st.pyplot(plt)
 
 def plot_stock_data(data, portfolio, timeframe):
     plt.figure(figsize=(14, 7))
@@ -84,7 +88,7 @@ def plot_stock_data(data, portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot()
+    st.pyplot(plt)
 
 def plot_profit_chart(portfolio, timeframe):
     plt.figure(figsize=(14, 5))
@@ -95,8 +99,7 @@ def plot_profit_chart(portfolio, timeframe):
     plt.legend()
     plt.grid()
     plt.tight_layout()
-    st.pyplot()
-
+    st.pyplot(plt)
 
 def streamlit_interface():
     st.title('Live Stock Portfolio Simulation')
@@ -115,18 +118,14 @@ def streamlit_interface():
                 sentiment_counts['Negative'] += 1
             else:
                 sentiment_counts['Neutral'] += 1
-            
-            plot_sentiment_pie_chart(sentiment_counts)
         else:
             st.write("Please enter some text for analysis.")
     
-    st.subheader('enter the stock name and relax let me suggest you when to buy and sell to maximize profit')
-    stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS)(note:must add .NS after the stock name)", "TATAMOTORS.NS")
-    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=100000)
+    st.subheader('Enter the stock name and relax, let me suggest when to buy and sell to maximize profit')
+    stock_symbol = st.text_input("Enter Stock Name (e.g., TATAMOTORS.NS) (note: must add .NS after the stock name)", "TATAMOTORS.NS")
+    initial_capital = st.number_input("Enter Initial Capital (INR)", min_value=1000, value=10000)
 
     timeframe_option = st.selectbox("Select Timeframe for Data", ["1 Day", "1 month"])
-
-    
 
     if st.button("Run Simulation"):
         st.write("Fetching live data and running simulation...")
@@ -136,9 +135,6 @@ def streamlit_interface():
         if timeframe_option == "1 Day":
             period = '1d'
             interval = '1m'
-        elif timeframe_option == "1 Week":
-            period = '1mo'
-            interval = '5m'
         
         data = fetch_live_data(stock_symbol, interval=interval, period=period)
         data = calculate_signals(data)
@@ -146,23 +142,19 @@ def streamlit_interface():
         if data.empty:
             st.error("No data fetched. Please check the stock symbol or try a different timeframe.")
         else:
-            data = calculate_signals(data)
+            portfolio = simulate_portfolio(data, initial_capital)
 
-        portfolio = simulate_portfolio(data, initial_capital)
+            st.write(f"Latest data for {stock_symbol}:")
+            st.dataframe(data.tail())
+            
+            st.write("Portfolio summary:")
+            st.dataframe(portfolio.tail())
 
-
-        st.write(f"Latest data for {stock_symbol}:")
-        st.dataframe(data.tail())
-        
-        st.write("Portfolio summary:")
-        st.dataframe(portfolio.tail())
-
-        st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
-        plot_stock_data(data, portfolio, timeframe_option)
-        
-        st.write(f"Portfolio Value Over Time ({timeframe_option}):")
-        plot_profit_chart(portfolio, timeframe_option)
+            st.write(f"Stock Price and Moving Averages ({timeframe_option}):")
+            plot_stock_data(data, portfolio, timeframe_option)
+            
+            st.write(f"Portfolio Value Over Time ({timeframe_option}):")
+            plot_profit_chart(portfolio, timeframe_option)
 
 if __name__ == "__main__":
     streamlit_interface()
-    
