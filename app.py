@@ -5,7 +5,8 @@ import yfinance as yf
 import streamlit as st
 
 def calculate_brokerage(amount):
-    return min(20, 0.0005 * amount)
+    # Ensure amount is processed element-wise
+    return np.minimum(20, 0.0005 * amount)
 
 def fetch_live_data(stock_symbol, interval='5m', period='1mo'):
     live_data = yf.download(tickers=stock_symbol, period=period, interval=interval)
