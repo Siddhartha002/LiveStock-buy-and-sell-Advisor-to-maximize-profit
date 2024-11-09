@@ -29,6 +29,7 @@ def simulate_portfolio(data, initial_capital=100000):
 
     for i in range(1, len(data)):
         current_index = data.index[i]
+        shares_held = int(shares_held)
 
         if data['Position'].iloc[i] == 1.0:
             shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
@@ -40,6 +41,7 @@ def simulate_portfolio(data, initial_capital=100000):
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
+        
         
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
