@@ -3,9 +3,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import yfinance as yf
 import streamlit as st
-from datetime import datetime, timedelta
-from transformers import pipeline 
 
+def calculate_brokerage(amount):
+    return min(20, 0.0005 * amount)
 
 def fetch_live_data(stock_symbol, interval='5m', period='1mo'):
     live_data = yf.download(tickers=stock_symbol, period=period, interval=interval)
@@ -19,39 +19,36 @@ def calculate_signals(data, short_window=7, long_window=30):
     return data
 
 def simulate_portfolio(data, initial_capital=100000):
-    # Initialize portfolio DataFrame with matching indices to data
     portfolio = pd.DataFrame(index=data.index)
     portfolio['Holdings'] = 0.0
-    portfolio['Cash'] = initial_capital
-    portfolio['Total'] = initial_capital
+    portfolio['Cash'] = float(initial_capital)  # Cast to float initially
+    portfolio['Total'] = float(initial_capital)
     portfolio['Returns'] = 0.0
     shares_held = 0
 
     for i in range(1, len(data)):
-        # Ensure that the current row exists in portfolio before assignment
         current_index = data.index[i]
 
-        # Buy Signal
         if data['Position'].iloc[i] == 1.0:
             shares_to_buy = portfolio['Cash'].iloc[i - 1] // data['Close'].iloc[i]
             amount = shares_to_buy * data['Close'].iloc[i]
-            tcost = amount
+            brokerage = calculate_brokerage(amount)
+            tcost = amount + brokerage
             if tcost <= portfolio['Cash'].iloc[i - 1]:
                 shares_held += shares_to_buy
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
         
-        # Sell Signal
         elif data['Position'].iloc[i] == -1.0 and shares_held > 0:
             amount = shares_held * data['Close'].iloc[i]
-            tcost = amount
+            brokerage = calculate_brokerage(amount)
+            tcost = amount - brokerage
             portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] + tcost
             shares_held = 0
         else:
             portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1]
 
-        # Update holdings, total, and returns using .at[]
         portfolio.at[current_index, 'Holdings'] = shares_held * data['Close'].iloc[i]
         portfolio.at[current_index, 'Total'] = portfolio.at[current_index, 'Cash'] + portfolio.at[current_index, 'Holdings']
         portfolio.at[current_index, 'Returns'] = portfolio.at[current_index, 'Total'] - portfolio['Total'].iloc[i - 1]

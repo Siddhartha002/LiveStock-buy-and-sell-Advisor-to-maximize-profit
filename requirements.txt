@@ -2,6 +2,3 @@ pandas
 numpy
 matplotlib
 yfinance
-transformers
-tensorflow
-tf-keras
