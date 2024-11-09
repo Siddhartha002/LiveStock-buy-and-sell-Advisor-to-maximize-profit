@@ -35,7 +35,7 @@ def simulate_portfolio(data, initial_capital=100000):
             amount = shares_to_buy * data['Close'].iloc[i]
             brokerage = calculate_brokerage(amount)
             tcost = amount + brokerage
-            if tcost <= portfolio['Cash'].iloc[i - 1]:
+            if tcost.item() <= portfolio['Cash'].iloc[i - 1].item():
                 shares_held += shares_to_buy
                 portfolio.at[current_index, 'Cash'] = portfolio['Cash'].iloc[i - 1] - tcost
             else:
