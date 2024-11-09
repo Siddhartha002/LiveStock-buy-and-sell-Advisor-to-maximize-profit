@@ -67,11 +67,15 @@ def plot_stock_data(data, portfolio, timeframe):
 
     buy_signals = data[data['Position'] == 1]
     sell_signals = data[data['Position'] == -1]
-    buy_signals.index = buy_signals.index.tz_convert(data.index.tz)
-    sell_signals.index = sell_signals.index.tz_convert(data.index.tz)
     
-    plt.plot(buy_signals.index, data['Close'][buy_signals.index], '^', markersize=10, color='g', label='Buy Signal')
-    plt.plot(sell_signals.index, data['Close'][sell_signals.index], 'v', markersize=10, color='r', label='Sell Signal')
+    # Convert the timezone of `data`'s index if it has a timezone
+    if data.index.tz:
+        buy_signals.index = buy_signals.index.tz_convert(data.index.tz)
+        sell_signals.index = sell_signals.index.tz_convert(data.index.tz)
+    
+    # Plot buy and sell signals
+    plt.plot(buy_signals.index, data.loc[buy_signals.index, 'Close'], '^', markersize=10, color='g', label='Buy Signal')
+    plt.plot(sell_signals.index, data.loc[sell_signals.index, 'Close'], 'v', markersize=10, color='r', label='Sell Signal')
 
     plt.title(f'Stock Price with Moving Averages ({timeframe})')
     plt.xlabel('Time')
