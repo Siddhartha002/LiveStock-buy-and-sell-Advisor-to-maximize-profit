@@ -67,6 +67,8 @@ def plot_stock_data(data, portfolio, timeframe):
 
     buy_signals = data[data['Position'] == 1]
     sell_signals = data[data['Position'] == -1]
+    buy_signals.index = buy_signals.index.tz_convert(data.index.tz)
+    sell_signals.index = sell_signals.index.tz_convert(data.index.tz)
     
     plt.plot(buy_signals.index, data['Close'][buy_signals.index], '^', markersize=10, color='g', label='Buy Signal')
     plt.plot(sell_signals.index, data['Close'][sell_signals.index], 'v', markersize=10, color='r', label='Sell Signal')
@@ -111,6 +113,8 @@ def streamlit_interface():
         data = fetch_live_data(stock_symbol, interval=interval, period=period)
         data = calculate_signals(data)
         st.write("Fetched Data:", data)
+        if 'Datetime' in data.columns:
+            data.set_index('Datetime', inplace=True)
         if data.empty:
             st.error("No data fetched. Please check the stock symbol or try a different timeframe.")
         else:
